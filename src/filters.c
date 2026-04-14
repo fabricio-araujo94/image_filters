@@ -1,4 +1,5 @@
 #include "../include/filters.h"
+#include <stdlib.h>
 
 static inline uint8_t clamp(int value) {
     if (value < 0) return 0;
@@ -37,4 +38,45 @@ void filter_contrast(Image *img, float factor) {
         int new_val = (int) ((*(p + i) - 128) * factor + 128);
         *(p + i) = clamp(new_val);
     }
+}
+
+void filter_mean_blur(Image *img) {
+    if (!img || !img->data) return;
+
+    int w = img->width;
+    int h = img->height;
+    int channels = img->channels;
+    int size = w * h * channels;
+
+    uint8_t *temp = (uint8_t *) malloc(size * sizeof(uint8_t));
+    if (!temp) return;
+
+    uint8_t *src = img->data;
+    uint8_t *dst = temp;
+    for (int i = 0; i < size; i++) {
+        *(dst + i) = *(src + i);
+    }
+
+    for (int y = 1; y < h - 1; y++) {
+        for (int x = 1; x < w - 1; x++) {
+            for (int c = 0; c < channels; c++) {
+                int sum = 0;
+
+                for (int ky = -1; ky <= 1; ky++) {
+                    for (int kx = -1; kx <= 1; kx++) {
+                        int py = y + ky;
+                        int px = x + kx;
+    
+                        int neighbor_idx = (py * w + px) * channels + c;
+                        sum += temp[neighbor_idx];
+                    }
+                }
+
+                int current_idx = (y * w + x) * channels + c;
+                img->data[current_idx] = (uint8_t)(sum / 9);
+            }
+        }
+    } 
+
+    free(temp);
 }
