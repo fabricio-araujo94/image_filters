@@ -4,5 +4,7 @@
 #include "image.h"
 
 void filter_negative(Image *img);
+void filter_brightness(Image *img, int amount);
+void filter_contrast(Image *img, float factor);
 
 #endif
