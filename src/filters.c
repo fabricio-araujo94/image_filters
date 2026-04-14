@@ -98,6 +98,58 @@ void filter_mean_blur(Image *img, int kernel_size) {
     free(temp);
 }
 
+void filter_separable_blur(Image *img, int kernel_size) {
+    if (!img || !img->data || kernel_size < 3) return;
+
+    if (kernel_size % 2 == 0) kernel_size++;
+
+    int w = img->width;
+    int h = img->height;
+    int channels = img->channels;
+    int size = w * h * channels;
+    int offset = kernel_size / 2;
+
+    uint8_t *temp = (uint8_t*) malloc(size);
+    if (!temp) return;
+
+    memcpy(temp, img->data, size);
+
+    for (int y = offset; y < h - offset; y++) {
+        for (int x = offset; x < w - offset; x++) {
+            for(int c = 0; c < channels; c++) {
+
+                long sum = 0;
+
+                for (int kx = -offset; kx <= offset; kx++) {
+                    int neighbor_idx = (y * w + (x + kx)) * channels + c;
+                    sum += *(img->data + neighbor_idx);
+                }
+
+                int current_idx = (y * w + x) * channels + c;
+                *(temp + current_idx) = (uint8_t) (sum / kernel_size);
+            }
+        }
+    }
+
+    for (int y = offset; y < h - offset; y++) {
+        for (int x = offset; x < w - offset; x++) {
+            for (int c = 0; c < channels; c++) {
+                int sum = 0;
+
+                for (int ky = -offset; ky <= offset; ky++) {
+                    int neighbor_idx = ((y + ky) * w + x) * channels + c;
+                    sum += *(temp + neighbor_idx);
+                }
+
+                int current_idx = (y * w + x) * channels + c;
+                *(img->data + current_idx) = (uint8_t) (sum / kernel_size);
+            }
+        }
+    }
+
+    free(temp);
+}
+
 void filter_sobel(Image *img) {
     if (!img || !img->data) return;
 
