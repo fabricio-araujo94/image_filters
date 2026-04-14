@@ -1,5 +1,6 @@
 #include "../include/filters.h"
 #include <stdlib.h>
+#include <math.h>
 
 static inline uint8_t clamp(int value) {
     if (value < 0) return 0;
@@ -77,6 +78,62 @@ void filter_mean_blur(Image *img) {
             }
         }
     } 
+
+    free(temp);
+}
+
+void filter_sobel(Image *img) {
+    if (!img || !img->data) return;
+
+    int w = img->width;
+    int h = img->height;
+    int channels = img->channels;
+    int size = w * h * channels;
+    
+    uint8_t *temp = (uint8_t*) malloc(size * sizeof(uint8_t));
+    if(!temp) return;
+
+    uint8_t *src = img->data;
+    uint8_t *dst = temp;
+    for (int i = 0; i < size; i++) {
+        *(dst + i) = *(src + i);
+    }
+
+    int Gx[3][3] = {
+        {-1, 0, 1},
+        {-2, 0, 2},
+        {-1, 0, 1}
+    };
+
+    int Gy[3][3] = {
+        {-1, -2, -1},
+        { 0,  0,  0},
+        { 1,  2,  1}
+    };
+
+    for (int y = 1; y < h - 1; y++) {
+        for (int x = 1; x < w - 1; x++) {
+            int sum_x = 0;
+            int sum_y = 0;
+
+            for (int ky = -1; ky <= 1; ky++) {
+                for (int kx = -1; kx <= 1; kx++) {
+                    int py = y + ky;
+                    int px = x + kx;
+                    int neighbor_idx = (py * w + px) * channels;
+                    int pixel_val = *(temp + neighbor_idx);
+
+                    sum_x += pixel_val * Gx[ky + 1][kx + 1];
+                    sum_y += pixel_val * Gy[ky + 1][kx + 1];
+                }
+            }
+
+            int magnitude = (int) sqrt((sum_x * sum_x) + (sum_y * sum_y));
+
+            int current_idx = (y * w + x) * channels;
+            *(img->data + current_idx) = clamp(magnitude);
+        }
+    }
 
     free(temp);
 }
