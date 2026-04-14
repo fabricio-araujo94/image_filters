@@ -8,6 +8,22 @@ static inline uint8_t clamp(int value) {
     return (uint8_t) value;
 }
 
+static void sort_window(uint8_t window[], int size) {
+    for (int i = 1; i < size; i++) {
+        uint8_t key = window[i];
+        int j = i - 1;
+
+        while (j >= 0 && window[j] > key) {
+            window[j + 1] = window[j];
+            j--;
+        }
+
+        window[j + 1] = key;
+
+
+    }
+}
+
 void filter_negative(Image *img) {
     if (!img || !img->data) return;
 
@@ -132,6 +148,45 @@ void filter_sobel(Image *img) {
 
             int current_idx = (y * w + x) * channels;
             *(img->data + current_idx) = clamp(magnitude);
+        }
+    }
+
+    free(temp);
+}
+
+void filter_median(Image *img) {
+    if (!img || !img->data) return;
+    
+    int w = img->width;
+    int h = img->height;
+    int channels = img->channels;
+    int size = w * h * channels;
+
+    uint8_t *temp = (uint8_t *) malloc(size * sizeof(uint8_t));
+    if (!temp) return;
+
+    uint8_t *src = img->data;
+    uint8_t *dst = temp;
+    for (int i = 0; i < size; i++) {
+        *(dst + i) = *(src + i);
+    }
+
+    uint8_t window[9];
+
+    for (int y = 1; y < h - 1; y++) {
+        for (int x = 1; x < w - 1; x++) {
+            int k = 0;
+            for (int ky = -1; ky <= 1; ky++) {
+                for(int kx = -1; kx <= 1; kx++) {
+                    int neighbor_idx = ((y + ky) * w + (x + kx)) * channels;
+                    window[k++] = *(temp + neighbor_idx);
+                }
+            }
+
+            sort_window(window, 9);
+
+            int current_idx = (y * w + x) * channels;
+            *(img->data + current_idx) = window[4];
         }
     }
 
