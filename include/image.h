@@ -14,6 +14,8 @@ Image* read_pgm(const char *filename);
 int save_pgm(const char *filename, const Image *img);
 
 Image* load_image_stb(const char *filename);
+int save_image_jpg(const char *filename, const Image *img, int quality);
+int save_image_png(const char *filename, const Image *img);
 
 Image* create_image(int w, int h, int c);
 void free_image(Image *img);
