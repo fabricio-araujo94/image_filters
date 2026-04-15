@@ -10,5 +10,6 @@ void filter_mean_blur(Image *img, int kernel_size);
 void filter_separable_blur(Image *img, int kernel_size);
 void filter_sobel(Image *img);
 void filter_median(Image *img);
+void filter_threshold(Image *img, uint8_t threshold);
 
 #endif

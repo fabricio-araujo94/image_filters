@@ -244,3 +244,18 @@ void filter_median(Image *img) {
 
     free(temp);
 }
+
+void filter_threshold(Image *img, uint8_t threshold) {
+    if (!img || !img->data) return;
+
+    int w = img->width;
+    int h = img->height;
+    int channels = img->channels;
+    int size = w * h * channels;
+    
+    uint8_t *p = img->data;
+
+    for (int i = 0; i < size; i++) {
+        *(p + i) = (*(p + i) >= threshold) ? 255 : 0;
+    } 
+}

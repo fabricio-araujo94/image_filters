@@ -2,26 +2,30 @@
 #include "../include/filters.h"
 #include <stdio.h>
 
+
 int main() {
-    const char *input_path = "assets/input.jpg";
-    const char *output_path = "assets/output_test.pgm";
+    const char *path = "assets/input.jpg";
 
-    printf("Reading file: %s\n", input_path);
-    Image *my_img = load_image_stb(input_path);
+    Image *img = load_image_stb(path);
 
-    if (my_img) {
-        printf("Read. Dimensions: %dx%d\n", my_img->width, my_img->height);
+    if (img) {
+        printf("Removendo ruidos...");
+        filter_separable_blur(img, 5);
 
-        filter_negative(my_img);
-        printf("Salving on: %s\n", output_path);
+        printf("Encontrando os contornos...");
+        filter_sobel(img);
 
-        if (save_pgm(output_path, my_img) == 0) {
-            printf("Saved.");
-        }
-        free_image(my_img);
+        uint8_t limiar = 50;
+        printf("Binarizando a imagem...");
+        filter_threshold(img, limiar);
+
+        save_pgm("assets/segmented_result.pgm", img);
+        free_image(img);
+
+        puts("Feito!");
     } else {
-        printf("Error opening the image. Please verify that the path exists.\n");
+        printf("Erro ao carregar a imagem.\n");
     }
-
+    
     return 0;
 }
