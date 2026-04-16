@@ -20,8 +20,6 @@ static void sort_window(uint8_t window[], int size) {
         }
 
         window[j + 1] = key;
-
-
     }
 }
 
@@ -66,36 +64,35 @@ void filter_mean_blur(Image *img, int kernel_size) {
 
     int w = img->width;
     int h = img->height;
-    int channels = img->channels;
-    int size = w * h * channels;
+    int c = img->channels;
     int offset = kernel_size / 2;
-    float num_pixels = (float) (kernel_size * kernel_size);
+    int window_area = kernel_size * kernel_size;
 
-    uint8_t *temp = (uint8_t*) malloc(size);
-    if (!temp) return;
+    uint8_t *src = (uint8_t*) malloc(w * h * c);
+    if (!src) return;
 
-    memcpy(temp, img->data, size);
+    memcpy(src, img->data, w * h * c);
 
     for (int y = offset; y < h - offset; y++) {
         for (int x = offset; x < w - offset; x++) {
 
-            for (int c = 0; c < channels; c++) {
+            for (int ch = 0; ch < c; ch++) {
                 long sum = 0;
 
                 for (int ky = -offset; ky <= offset; ky++) {
                     for (int kx = -offset; kx <= offset; kx++) {
-                        int idx = ((y + ky) * w + (x + kx)) * channels + c;
-                        sum += temp[idx];
+                        int idx = ((y + ky) * w + (x + kx)) * c + ch;
+                        sum += *(src + idx);
                     }
                 }
 
-                int current_idx = (y * w + x) * channels + c;
-                img->data[current_idx] = (uint8_t) (sum / num_pixels);
+                int idx = (y * w + x) * c + ch;
+                *(img->data + idx) = (uint8_t) (sum / window_area);
             }
         }
     }
 
-    free(temp);
+    free(src);
 }
 
 void filter_separable_blur(Image *img, int kernel_size) {
@@ -105,44 +102,43 @@ void filter_separable_blur(Image *img, int kernel_size) {
 
     int w = img->width;
     int h = img->height;
-    int channels = img->channels;
-    int size = w * h * channels;
+    int c = img->channels;
     int offset = kernel_size / 2;
 
-    uint8_t *temp = (uint8_t*) malloc(size);
+    uint8_t *temp = (uint8_t*) malloc(w * h * c);
     if (!temp) return;
 
-    memcpy(temp, img->data, size);
+    memcpy(temp, img->data, w * h * c);
 
-    for (int y = offset; y < h - offset; y++) {
+    for (int y = 0; y < h; y++) {
         for (int x = offset; x < w - offset; x++) {
-            for(int c = 0; c < channels; c++) {
+            for(int ch = 0; ch < c; ch++) {
 
                 long sum = 0;
 
-                for (int kx = -offset; kx <= offset; kx++) {
-                    int neighbor_idx = (y * w + (x + kx)) * channels + c;
-                    sum += *(img->data + neighbor_idx);
+                for (int k = -offset; k <= offset; k++) {
+                    int idx = (y * w + (x + k)) * c + ch;
+                    sum += *(img->data + idx);
                 }
 
-                int current_idx = (y * w + x) * channels + c;
-                *(temp + current_idx) = (uint8_t) (sum / kernel_size);
+                int idx = (y * w + x) * c + ch;
+                *(temp + idx) = (sum / kernel_size);
             }
         }
     }
 
     for (int y = offset; y < h - offset; y++) {
-        for (int x = offset; x < w - offset; x++) {
-            for (int c = 0; c < channels; c++) {
+        for (int x = 0; x < w; x++) {
+            for (int ch = 0; ch < c; ch++) {
                 int sum = 0;
 
-                for (int ky = -offset; ky <= offset; ky++) {
-                    int neighbor_idx = ((y + ky) * w + x) * channels + c;
-                    sum += *(temp + neighbor_idx);
+                for (int k = -offset; k <= offset; k++) {
+                    int idx = ((y + k) * w + x) * c + ch;
+                    sum += *(temp + idx);
                 }
 
-                int current_idx = (y * w + x) * channels + c;
-                *(img->data + current_idx) = (uint8_t) (sum / kernel_size);
+                int idx = (y * w + x) * c + ch;
+                *(img->data + idx) = (sum / kernel_size);
             }
         }
     }
@@ -155,17 +151,12 @@ void filter_sobel(Image *img) {
 
     int w = img->width;
     int h = img->height;
-    int channels = img->channels;
-    int size = w * h * channels;
+    int c = img->channels;
     
-    uint8_t *temp = (uint8_t*) malloc(size * sizeof(uint8_t));
-    if(!temp) return;
+    uint8_t *src = (uint8_t*) malloc(w * h * c);
+    if(!src) return;
 
-    uint8_t *src = img->data;
-    uint8_t *dst = temp;
-    for (int i = 0; i < size; i++) {
-        *(dst + i) = *(src + i);
-    }
+    memcpy(src, img->data, w * h * c);
 
     int Gx[3][3] = {
         {-1, 0, 1},
@@ -186,24 +177,22 @@ void filter_sobel(Image *img) {
 
             for (int ky = -1; ky <= 1; ky++) {
                 for (int kx = -1; kx <= 1; kx++) {
-                    int py = y + ky;
-                    int px = x + kx;
-                    int neighbor_idx = (py * w + px) * channels;
-                    int pixel_val = *(temp + neighbor_idx);
+                    int idx = ((y + ky) * w + (x + kx)) * c;
+                    int val = *(src + idx);
 
-                    sum_x += pixel_val * Gx[ky + 1][kx + 1];
-                    sum_y += pixel_val * Gy[ky + 1][kx + 1];
+                    sum_x += val * Gx[ky + 1][kx + 1];
+                    sum_y += val * Gy[ky + 1][kx + 1];
                 }
             }
 
-            int magnitude = (int) sqrt((sum_x * sum_x) + (sum_y * sum_y));
+            int magnitude = abs(sum_x) + abs(sum_y);
 
-            int current_idx = (y * w + x) * channels;
-            *(img->data + current_idx) = clamp(magnitude);
+            int idx = (y * w + x) * c;
+            *(img->data + idx) = clamp(magnitude);
         }
     }
 
-    free(temp);
+    free(src);
 }
 
 void filter_median(Image *img) {
@@ -211,17 +200,12 @@ void filter_median(Image *img) {
     
     int w = img->width;
     int h = img->height;
-    int channels = img->channels;
-    int size = w * h * channels;
+    int c = img->channels;
 
-    uint8_t *temp = (uint8_t *) malloc(size * sizeof(uint8_t));
-    if (!temp) return;
+    uint8_t *src = (uint8_t *) malloc(w * h * c);
+    if (!src) return;
 
-    uint8_t *src = img->data;
-    uint8_t *dst = temp;
-    for (int i = 0; i < size; i++) {
-        *(dst + i) = *(src + i);
-    }
+    memcpy(src, img->data, w * h * c);
 
     uint8_t window[9];
 
@@ -230,32 +214,29 @@ void filter_median(Image *img) {
             int k = 0;
             for (int ky = -1; ky <= 1; ky++) {
                 for(int kx = -1; kx <= 1; kx++) {
-                    int neighbor_idx = ((y + ky) * w + (x + kx)) * channels;
-                    window[k++] = *(temp + neighbor_idx);
+                    int idx = ((y + ky) * w + (x + kx)) * c;
+                    window[k++] = *(src + idx);
                 }
             }
 
             sort_window(window, 9);
 
-            int current_idx = (y * w + x) * channels;
-            *(img->data + current_idx) = window[4];
+            int idx = (y * w + x) * c;
+            *(img->data + idx) = window[4];
         }
     }
 
-    free(temp);
+    free(src);
 }
 
 void filter_threshold(Image *img, uint8_t threshold) {
     if (!img || !img->data) return;
 
-    int w = img->width;
-    int h = img->height;
-    int channels = img->channels;
-    int size = w * h * channels;
-    
+    int size = img->width * img->height * img->channels;
     uint8_t *p = img->data;
 
     for (int i = 0; i < size; i++) {
         *(p + i) = (*(p + i) >= threshold) ? 255 : 0;
     } 
 }
+
